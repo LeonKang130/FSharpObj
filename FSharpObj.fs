@@ -16,25 +16,21 @@ module Parser =
         | Face of Index list
     let ParseMeshAttribute (line: string) =
         let prefixLength = line.IndexOf ' '
-        let prefix, suffix = line.Substring(0, prefixLength), line.Substring(prefixLength + 1)
+        let prefix = line.Substring(0, prefixLength)
+        let items = line.Substring(prefixLength + 1).Split(' ', StringSplitOptions.RemoveEmptyEntries)
         match prefix with
-        | "v" ->
-            suffix.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        | "v" | "vn" ->
+            items
             |> Array.map System.Single.Parse
             |> (fun xyz -> Vector3(ReadOnlySpan xyz))
-            |> Position
-        | "vn" ->
-            suffix.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            |> Array.map System.Single.Parse
-            |> (fun xyz -> Vector3(ReadOnlySpan xyz))
-            |> Normal
+            |> (if prefix = "v" then Position else Normal)
         | "vt" ->
-            suffix.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            items
             |> Array.map System.Single.Parse
-            |> (fun xy -> Vector2(ReadOnlySpan xy))
+            |> (fun uv -> Vector2(ReadOnlySpan uv))
             |> TexCoord
         | "f" ->
-            suffix.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            items
             |> Seq.ofArray
             |> Seq.map (fun str ->
                 let components = str.Split('/')
@@ -73,7 +69,7 @@ module Parser =
                             normalIdx = if index.normalIdx <= 0 then index.normalIdx + normals.Count else index.normalIdx - 1
                             texcoordIdx = if index.texcoordIdx <= 0 then index.texcoordIdx + texcoords.Count else index.texcoordIdx - 1
                         }
-                        if vertexDictionary.TryAdd(index, vertices.Count) then
+                        if vertexDictionary.TryAdd (index, vertices.Count) then
                             vertices.Add {
                                 position = positions[index.positionIdx]
                                 normal = if index.normalIdx < normals.Count then normals[index.normalIdx] else Vector3.UnitY
@@ -102,8 +98,8 @@ module Parser =
 module Processor =
     let RecalculateNormal mesh =
         let normals = Span (NativePtr.toVoidPtr (NativePtr.stackalloc<Vector3> mesh.vertices.Length), mesh.vertices.Length)
-        for n in 0 .. mesh.triangles.Length / 3 - 1 do
-            let i, j, k = mesh.triangles[3 * n], mesh.triangles[3 * n + 1], mesh.triangles[3 * n + 2]
+        for n in 0 .. 3 .. mesh.triangles.Length / 3 - 1 do
+            let i, j, k = mesh.triangles[n], mesh.triangles[n + 1], mesh.triangles[n + 2]
             let p1, p2, p3 = mesh.vertices[i].position, mesh.vertices[j].position, mesh.vertices[k].position
             let normal = Vector3.Normalize (Vector3.Cross(p2 - p1, p3 - p1))
             let w1 = acos(Vector3.Dot(Vector3.Normalize(p2 - p1), Vector3.Normalize(p3 - p1)))
