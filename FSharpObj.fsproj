@@ -7,6 +7,7 @@
     <Compile Include="FSharpObj.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
-  <ItemGroup>
-  </ItemGroup>
+  <Target Name="CopyCustomContent" AfterTargets="AfterBuild">
+    <Copy SourceFiles="cornell_box.obj; stanford-bunny.obj; xyzrgb_dragon.obj" DestinationFolder="$(OutDir)" />
+  </Target>
 </Project>
